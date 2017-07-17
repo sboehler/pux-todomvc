@@ -1,6 +1,7 @@
 module App.State where
 
-import Prelude (flip, not)
+import Prelude (flip, not, (==))
+import Data.Maybe (Maybe(..))
 import Data.Array (filter)
 import App.Config (config)
 import App.Routes (Route(..), match, toURL)
@@ -12,9 +13,7 @@ import Data.Function (($))
 newtype Todo = Todo
   { id :: Int
   , text :: String
-  , newText :: String
   , completed :: Boolean
-  , editing :: Boolean
   }
 
 newtype State = State
@@ -23,6 +22,7 @@ newtype State = State
   , route :: Route
   , todos :: Array Todo
   , newTodo :: String
+  , editedTodo :: Maybe Todo
   }
 
 getVisibleTodos :: State -> Array Todo
@@ -34,6 +34,10 @@ getVisibleTodos (State st) = case st.route of
 getActiveTodos :: State -> Array Todo
 getActiveTodos (State st) = (flip filter st.todos \(Todo t) -> not t.completed)
 
+isEditing :: State -> Todo -> Boolean
+isEditing (State st) (Todo t) = case st.editedTodo of
+  Nothing       -> false
+  Just (Todo e) -> e.id == t.id
 
 instance decodeJsonState :: DecodeJson State where
   decodeJson json = do
@@ -43,7 +47,8 @@ instance decodeJsonState :: DecodeJson State where
     url <- obj .? "route"
     todos <- obj .? "todos"
     newTodo <- obj .? "newTodo"
-    pure $ State { title, todos, loaded, newTodo, route: match url }
+    editedTodo <- obj.? "editedTodo"
+    pure $ State { title, todos, loaded, newTodo, route: match url, editedTodo }
 
 instance encodeJsonState :: EncodeJson State where
   encodeJson (State st) =
@@ -52,6 +57,7 @@ instance encodeJsonState :: EncodeJson State where
     ~> "route"   := toURL st.route
     ~> "todos"   := st.todos
     ~> "newTodo" := st.newTodo
+    ~> "editedTodo" := st.editedTodo
     ~> jsonEmptyObject
 
 instance decodeJsonTodo :: DecodeJson Todo where
@@ -60,14 +66,13 @@ instance decodeJsonTodo :: DecodeJson Todo where
     id <- obj .? "id"
     text <- obj .? "text"
     completed <- obj .? "completed"
-    pure $ Todo { id, text, completed, editing: false, newText: text }
+    pure $ Todo { id, text, completed }
 
 instance encodeJsonTodo :: EncodeJson Todo where
   encodeJson (Todo todo) =
        "id" := todo.id
     ~> "text" := todo.text
     ~> "completed" := todo.completed
-    ~> "editing" := todo.editing
     ~> jsonEmptyObject
 
 init :: String -> State
@@ -77,4 +82,5 @@ init url = State
   , route: match url
   , todos: []
   , newTodo: ""
+  , editedTodo: Nothing
   }

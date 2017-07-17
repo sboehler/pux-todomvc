@@ -2,13 +2,14 @@ module App.View.TodoList where
 
 import Prelude hiding (div)
 import App.Routes (Route(..))
-import App.State (State(..), Todo(..), getVisibleTodos, getActiveTodos)
+import App.State (State(..), Todo(..), getVisibleTodos, getActiveTodos, isEditing)
 import App.Events (Event(..))
 import Data.Array (length)
+import Data.Maybe (fromMaybe)
 import Data.Foldable (for_)
 import Data.Monoid (mempty)
 import Pux.DOM.Events (onClick, onChange, onDoubleClick, onKeyUp)
-import Pux.DOM.HTML (HTML, memoize)
+import Pux.DOM.HTML (HTML)
 import Pux.DOM.HTML.Attributes (focused, key)
 import Text.Smolder.HTML (a, button, div, footer, h1, header, input, label, li, p, section, span, strong, ul)
 import Text.Smolder.HTML.Attributes (checked, className, for, href, placeholder, type', value)
@@ -17,11 +18,11 @@ import Text.Smolder.Markup ((!), (!?), (#!), text)
 renderEditedTodo :: Todo -> HTML Event
 renderEditedTodo = \(Todo todo) ->
   input
-    #! onKeyUp (TodoInput todo.id)
+    #! onKeyUp TodoInput
     ! type' "text"
     ! className "edit"
     ! focused
-    ! value todo.newText
+    ! value todo.text
 
 renderViewTodo :: Todo -> HTML Event
 renderViewTodo = \(Todo todo) ->
@@ -37,18 +38,22 @@ renderViewTodo = \(Todo todo) ->
       ! className "destroy"
       $ mempty
 
-renderTodo :: Todo -> HTML Event
-renderTodo = memoize \(Todo todo) ->
-  li
-    ! className (if todo.completed
-        then "completed"
-        else if todo.editing
-          then "editing"
-          else "")
-    ! key (show todo.id) $ do
-        if todo.editing
-           then renderEditedTodo (Todo todo)
-           else renderViewTodo (Todo todo)
+renderTodo :: State -> Todo -> HTML Event
+renderTodo = \(State st) (Todo todo) ->
+  let
+    editing = isEditing (State st) (Todo todo)
+  in
+
+    li
+      ! className (if todo.completed
+          then "completed"
+          else if editing
+            then "editing"
+            else "")
+      ! key (show todo.id) $ do
+          if isEditing (State st) (Todo todo)
+             then renderEditedTodo $ fromMaybe (Todo todo) st.editedTodo
+             else renderViewTodo (Todo todo)
 
 view :: State -> HTML Event
 view (State st) =
@@ -93,7 +98,7 @@ view (State st) =
         $ text "Mark all as complete"
       ul
         ! className "todo-list" $ do
-          for_ (getVisibleTodos (State st)) renderTodo
+          for_ (getVisibleTodos (State st)) $ renderTodo (State st)
 
     renderFooter = footer ! className "info" $ do
       p $ text "Double-click to edit a todo"

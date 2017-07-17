@@ -11,7 +11,7 @@ import DOM.Event.KeyboardEvent (eventToKeyboardEvent, key)
 import DOM.HTML (window)
 import DOM.HTML.History (DocumentTitle(..), URL(..), pushState)
 import DOM.HTML.Window (history)
-import Data.Array (filter, last, snoc)
+import Data.Array (filter, last, snoc, find)
 import Data.Either (either)
 import Data.Foreign (toForeign)
 import Data.Maybe (Maybe(..), maybe)
@@ -24,7 +24,7 @@ data Event
   = PageView Route
   | Navigate String DOMEvent
   | NewTodoInput DOMEvent
-  | TodoInput TodoId DOMEvent
+  | TodoInput DOMEvent
   | ToggleEditing TodoId DOMEvent
   | ToggleCompleted TodoId DOMEvent
   | ToggleAllCompleted
@@ -52,40 +52,25 @@ foldp (NewTodoInput ev) (State st) = noEffects $ State
         { id: maybe 1 (\(Todo todo) -> todo.id + 1) $ last st.todos
         , text: st.newTodo
         , completed: false
-        , editing: false
-        , newText: st.newTodo
         }
       }
     else st { newTodo = targetValue ev }
 
-foldp (TodoInput id ev) (State st) = noEffects $
-  case eventToKeyPressed ev of
-    "Enter" -> State st
-      { todos = flip map st.todos \(Todo t) ->
-          if t.id == id
-             then (Todo t { text = t.newText, editing = false })
-             else (Todo t)
-      }
-    "Escape" -> State st
-      { todos = flip map st.todos \(Todo t) ->
-          if t.id == id
-             then (Todo t { newText = t.text, editing = false })
-             else (Todo t)
-      }
-    _ -> State st
-      { todos = flip map st.todos \(Todo t) ->
-          if t.id == id then (Todo t { newText = targetValue ev })
-                        else (Todo t)
-      }
+foldp (TodoInput ev) (State st) = noEffects $
+  case st.editedTodo of
+    Nothing       -> (State st { editedTodo = Nothing })
+    Just (Todo e) -> case eventToKeyPressed ev of
+      "Enter" -> State st
+        { todos = flip map st.todos \(Todo t) -> if t.id == e.id
+            then (Todo e)
+            else (Todo t)
+        , editedTodo = Nothing }
+      "Escape" -> State st { editedTodo = Nothing }
+      _ -> State st { editedTodo = Just $ Todo e { text = targetValue ev } }
 
 foldp (ToggleEditing id ev) (State st) =
   noEffects $ State st
-    { todos = flip map st.todos \(Todo t) ->
-        if not t.completed then
-          if t.id == id
-             then (Todo t { newText = t.text, editing = not t.editing })
-             else (Todo t { editing = false })
-          else (Todo t { editing = false })
+    { editedTodo = flip find st.todos \(Todo t) -> not t.completed && t.id == id
     }
 
 foldp (ToggleCompleted id ev) (State st) = noEffects $ State st
