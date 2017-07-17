@@ -1,7 +1,9 @@
 module App.State where
 
+import Prelude (flip, not)
+import Data.Array (filter)
 import App.Config (config)
-import App.Routes (Route, match, toURL)
+import App.Routes (Route(..), match, toURL)
 import Control.Applicative (pure)
 import Control.Bind (bind)
 import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, jsonEmptyObject, (.?), (:=), (~>))
@@ -22,6 +24,16 @@ newtype State = State
   , todos :: Array Todo
   , newTodo :: String
   }
+
+getVisibleTodos :: State -> Array Todo
+getVisibleTodos (State st) = case st.route of
+  Active -> flip filter st.todos \(Todo t) -> not t.completed
+  Completed -> flip filter st.todos \(Todo t) -> t.completed
+  _ -> st.todos
+
+getActiveTodos :: State -> Array Todo
+getActiveTodos (State st) = (flip filter st.todos \(Todo t) -> not t.completed)
+
 
 instance decodeJsonState :: DecodeJson State where
   decodeJson json = do

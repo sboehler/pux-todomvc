@@ -94,7 +94,9 @@ foldp (ToggleCompleted id ev) (State st) = noEffects $ State st
   }
 
 foldp ToggleAllCompleted (State st) =
-  noEffects $ State st { todos = st.todos }
+  noEffects $ State st { todos = toggledTodos }
+    where toggledTodos = flip map st.todos \(Todo todo) -> Todo todo { completed = not todo.completed }
+
 
 foldp RemoveCompleted (State st) =
   noEffects $ State st { todos = flip filter st.todos \(Todo t) -> not t.completed }
