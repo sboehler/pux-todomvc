@@ -39,6 +39,12 @@ isEditing (State st) (Todo t) = case st.editedTodo of
   Nothing       -> false
   Just (Todo e) -> e.id == t.id
 
+getEditedVersion :: State -> Todo -> Maybe Todo
+getEditedVersion (State st) (Todo t) = case st.editedTodo of
+  Just (Todo e) | e.id == t.id -> Just $ Todo e
+  _                            -> Nothing
+
+
 instance decodeJsonState :: DecodeJson State where
   decodeJson json = do
     obj <- decodeJson json
