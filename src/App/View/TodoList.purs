@@ -1,13 +1,13 @@
 module App.View.TodoList where
 
-import Prelude hiding (div)
+import App.Events (Event(..))
 import App.Routes (Route(..))
 import App.State (State(..), Todo(..), getVisibleTodos, getActiveTodos, getEditedVersion)
-import App.Events (Event(..))
 import Data.Array (length)
-import Data.Maybe (Maybe(..))
 import Data.Foldable (for_)
+import Data.Maybe (Maybe(..))
 import Data.Monoid (mempty)
+import Prelude hiding (div)
 import Pux.DOM.Events (onClick, onChange, onDoubleClick, onKeyUp)
 import Pux.DOM.HTML (HTML)
 import Pux.DOM.HTML.Attributes (focused, key)
@@ -38,7 +38,7 @@ renderTodo = \(Todo todo) ->
           #! onChange (ToggleCompleted todo.id)
           ! className "toggle"
           ! type' "checkbox"
-        label #! onDoubleClick (ToggleEditing todo.id) $ text todo.text
+        label #! onDoubleClick (EditTodo (Todo todo)) $ text todo.text
         button
           #! onClick (RemoveTodo todo.id)
           ! className "destroy"
